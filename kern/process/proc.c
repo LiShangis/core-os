@@ -1320,6 +1320,17 @@ int pipewrite(struct pipe *pi, char* msg, int len)
             kprintf("size %d\n",size);
             //LAB5 YOUR CODE EX2 -----------------
 
+	    // 将msg中的数据写入pipe的addr中
+	    for (int x = 0; x < size; x++) {
+		    // 计算写入管道的地址
+		    unsigned char *addr_to_write = pi->addr + (pi->nwrite % PIPESIZE);
+		    // 写入数据
+		    *addr_to_write = *(msg + w + x);
+		    // 更新已写入字节的位置
+		    pi->nwrite++;
+	    }
+	    // 更新已写入字节数w
+	    w += size;
             //LAB5 YOUR CODE EX2 -----------------
         }
     }
