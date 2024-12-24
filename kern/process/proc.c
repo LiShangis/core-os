@@ -675,6 +675,12 @@ static int load_icode(unsigned char *binary, size_t size) { // load_icode from b
      *          tf->tf_regs.reg_r[LOONGARCH_REG_SP] should be the top addr of user stack (USTACKTOP)
      */
 
+    tf->tf_era = elf->e_entry; // 设置用户进程的入口点
+    tf->tf_regs.reg_r[LOONGARCH_REG_SP] = USTACKTOP; // 设置用户栈的栈顶地址
+    uint32_t status = 0;
+    status |= PLV_USER; // 设置为用户模式
+    status |= CSR_CRMD_IE; // 启用中断
+    tf->tf_prmd = status; // 设置进程状态
     #endif
     ret = 0;
     out:

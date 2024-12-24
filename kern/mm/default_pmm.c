@@ -139,24 +139,15 @@ default_alloc_pages(size_t n) {
         }
     }
     if (page != NULL) {
-	// 优化代码
-	int THRESHOLD = 1; // 设置阈值，如果剩余空间小于这一阈值，则全部分配出去
-	if (page->property >= n) {
-		// 只有在剩余空间大于某一阈值的情况下
-		// 才划分为两页，否则全部分配出去
-		if (page->property - n < THRESHOLD) {
-			nr_free -= page->property;
-			ClearPageProperty(page);
-		} else {
-			nr_free -= n;
-			struct Page *new_page = page + n;
-			new_page->property = page->property - n;
-			SetPageProperty(new_page);
-			list_add_after(&(page->page_link), &(new_page->page_link));
-		}
-		list_del(&(page->page_link));
-		ClearPageProperty(page);
-	}
+        if (page->property > n) {
+            struct Page *p = page + n;
+            p->property = page->property - n;
+            SetPageProperty(p);
+            list_add_after(&(page->page_link), &(p->page_link));
+        }
+        list_del(&(page->page_link));
+        nr_free -= n;
+        ClearPageProperty(page);
     }
     return page;
 #endif
