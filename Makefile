@@ -6,7 +6,7 @@
 LAB1	:= -DLAB1_EX2 -DLAB1_EX3 #-D_SHOW_100_TICKS -D_SHOW_SERIAL_INPUT
 LAB2	:= -DLAB2_EX1 -DLAB2_EX2 -DLAB2_EX3
 LAB3	:= -DLAB3_EX1 -DLAB3_EX2
-# LAB4	:= -DLAB4_EX1 -DLAB4_EX2
+LAB4	:= -DLAB4_EX1 -DLAB4_EX2
 
 # LAB CONFIG END
 
@@ -159,7 +159,7 @@ clean:
 	-rm -rf $(OBJDIR)
 
 qemu: $(OBJDIR)/ucore-kernel-$(USER_OBJ_MODE)
-	$(V)$(QEMU) $(QEMUOPTS) -kernel $(OBJDIR)/ucore-kernel-$(USER_OBJ_MODE) &
+	$(V)$(QEMU) $(QEMUOPTS) -kernel $(OBJDIR)/ucore-kernel-$(USER_OBJ_MODE)
 
 debug: $(OBJDIR)/ucore-kernel-$(USER_OBJ_MODE)
 	$(V)$(QEMU) $(QEMUOPTS) -kernel $(OBJDIR)/ucore-kernel-$(USER_OBJ_MODE) -S -s
