@@ -474,8 +474,8 @@ sfs_io_nolock(struct sfs_fs *sfs, struct sfs_inode *sin, void *buf, off_t offset
     uint32_t ino;
     uint32_t blkno = offset / SFS_BLKSIZE;
     uint32_t nblks = endpos / SFS_BLKSIZE - blkno;
-    #ifdef LAB4_EX1
-   //LAB4:EXERCISE1 YOUR CODE HINT: call sfs_bmap_load_nolock, sfs_rbuf, sfs_rblock,etc. read different kind of blocks in file
+    #ifdef LAB8_EX1
+   //LAB8:EXERCISE1 YOUR CODE HINT: call sfs_bmap_load_nolock, sfs_rbuf, sfs_rblock,etc. read different kind of blocks in file
 	/*
 	 * (1) If offset isn't aligned with the first block, Rd/Wr some content from offset to the end of the first block
 	 *       NOTICE: useful function: sfs_bmap_load_nolock, sfs_buf_op
@@ -485,36 +485,45 @@ sfs_io_nolock(struct sfs_fs *sfs, struct sfs_inode *sin, void *buf, off_t offset
      * (3) If end position isn't aligned with the last block, Rd/Wr some content from begin to the (endpos % SFS_BLKSIZE) of the last block
 	 *       NOTICE: useful function: sfs_bmap_load_nolock, sfs_buf_op	
 	*/
-    
-    if((blkoff = offset % SFS_BLKSIZE)!= 0)//如果文件起始位置不对齐
-    {
-	    size = (nblks != 0) ? (SFS_BLKSIZE - blkoff) : (endpos - offset);//计算起始块需要读取的块长度
-	    if((ret = sfs_bmap_load_nolock(sfs, sin, blkno, &ino)) != 0)//计算文件索引号
-		    goto out;
-	    if ((ret = sfs_buf_op(sfs, buf, size, ino, blkoff)) != 0)//读文件
-		    goto out;
-	    alen += size;//更新已读取块长度
-	    if (nblks == 0)
-		    goto out;
-	    buf += size, blkno ++, nblks --;//更新缓冲区已读数据规模,当前块,剩余读取块数量
-    }
-    size = SFS_BLKSIZE;//对齐部分单次读取块长度恒定
-    while(nblks != 0)//循环处理对齐部分
-    {
-	    if((ret = sfs_bmap_load_nolock(sfs, sin, blkno, &ino)) != 0)//同上
-		    goto out;
-	    if((ret = sfs_block_op(sfs, buf, ino, 1)) != 0)
-		    goto out;
-	    alen += size, buf += size, blkno ++, nblks --;
-    }
-    if((size = endpos % SFS_BLKSIZE) != 0)//计算结束块读取的块长度,如果文件结束位置不对齐
-    {
-	    if((ret = sfs_bmap_load_nolock(sfs, sin, blkno, &ino)) != 0)//同上
-		    goto out;
-	    if((ret = sfs_buf_op(sfs, buf, size, ino, 0)) != 0)
-		    goto out;
-	    alen += size;//同上
-    }
+        if((blkoff = offset % SFS_BLKSIZE)!= 0) {
+            if(nblks){
+            size = SFS_BLKSIZE - blkoff;
+            }else{
+            size  = endpos - offset;
+            }
+            if ((ret = sfs_bmap_load_nolock(sfs, sin, blkno, &ino)) != 0) {
+                goto out;
+            }
+            if ((ret = sfs_buf_op(sfs, buf, size, ino, blkoff)) != 0) {
+                goto out;
+            }
+            alen += size;
+            if (nblks == 0) {
+                goto out;
+            }
+            buf += size, blkno ++, nblks --;
+        }
+
+        size = SFS_BLKSIZE;
+        while(nblks != 0){
+            if((ret = sfs_bmap_load_nolock(sfs, sin, blkno, &ino)) != 0) {
+                goto out;
+            }
+            if((ret = sfs_block_op(sfs, buf, ino, 1)) != 0) {
+                goto out;
+            }
+            alen += size, buf += size, blkno ++, nblks --;
+        }
+
+        if((size = endpos % SFS_BLKSIZE) != 0) {
+            if ((ret = sfs_bmap_load_nolock(sfs, sin, blkno, &ino)) != 0) {
+                goto out;
+            }
+            if ((ret = sfs_buf_op(sfs, buf, size, ino, 0)) != 0) {
+                goto out;
+            }
+            alen += size;
+        }
     #endif
 out:
     *alenp = alen;

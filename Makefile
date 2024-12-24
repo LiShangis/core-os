@@ -3,14 +3,18 @@
 # Warning: If you changed anything in Makefile, 
 # you should execute `make clean` first.
 
-LAB1	:= -DLAB1_EX2 -DLAB1_EX3 #-D_SHOW_100_TICKS -D_SHOW_SERIAL_INPUT
+LAB1	:= -DLAB1_EX4 #-D_SHOW_100_TICKS -D_SHOW_SERIAL_INPUT
 LAB2	:= -DLAB2_EX1 -DLAB2_EX2 -DLAB2_EX3
 LAB3	:= -DLAB3_EX1 -DLAB3_EX2
 LAB4	:= -DLAB4_EX1 -DLAB4_EX2
+LAB5	:= -DLAB5_EX1 -DLAB5_EX2
+LAB6	:= -DLAB6_EX2
+LAB7	:= -DLAB7_EX1 #-D_SHOW_PHI
+LAB8	:= -DLAB8_EX1 -DLAB8_EX2
 
 # LAB CONFIG END
 
-ifdef LAB4
+ifdef LAB8
 	USER_OBJ_MODE	:= initrd
 else
 	USER_OBJ_MODE	:= piggy
@@ -43,7 +47,7 @@ HOSTCFLAGS	:= -g -Wall -O2
 GDB		:= loongarch32r-linux-gnusf-gdb
 
 CC :=$(GCCPREFIX)gcc
-LAB_FLA	:= $(LAB1) $(LAB2) $(LAB3) $(LAB4)
+LAB_FLA	:= $(LAB1) $(LAB2) $(LAB3) $(LAB4) $(LAB5) $(LAB6) $(LAB7) $(LAB8)
 CFLAGS	:= $(LAB_FLA) -fno-builtin-fprintf -fno-builtin -nostdlib  -nostdinc -g -G0 -Wa,-O0 -fno-pic -msoft-float -ggdb -gstabs 
 CTYPE	:= c S
 
@@ -159,7 +163,7 @@ clean:
 	-rm -rf $(OBJDIR)
 
 qemu: $(OBJDIR)/ucore-kernel-$(USER_OBJ_MODE)
-	$(V)$(QEMU) $(QEMUOPTS) -kernel $(OBJDIR)/ucore-kernel-$(USER_OBJ_MODE) &
+	$(V)$(QEMU) $(QEMUOPTS) -kernel $(OBJDIR)/ucore-kernel-$(USER_OBJ_MODE)
 
 debug: $(OBJDIR)/ucore-kernel-$(USER_OBJ_MODE)
 	$(V)$(QEMU) $(QEMUOPTS) -kernel $(OBJDIR)/ucore-kernel-$(USER_OBJ_MODE) -S -s

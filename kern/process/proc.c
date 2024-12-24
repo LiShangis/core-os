@@ -91,6 +91,32 @@ static struct proc_struct *
 alloc_proc(void) {
     struct proc_struct *proc = kmalloc(sizeof(struct proc_struct));
     if (proc != NULL) {
+    #ifdef LAB4_EX1
+        //LAB4:EXERCISE1 YOUR CODE
+        /*
+        * below fields in proc_struct need to be initialized
+        * enum proc_state state;                      // Process state
+        * int pid;                                    // Process ID
+        * int runs;                                   // the running times of Proces
+        * uintptr_t kstack;                           // Process kernel stack
+        * volatile bool need_resched;                 // bool value: need to be rescheduled to release CPU?
+        * struct proc_struct *parent;                 // the parent process
+        * struct mm_struct *mm;                       // Process's memory management field
+        * struct context context;                     // Switch here to run process
+        * struct trapframe *tf;                       // Trap frame for current interrupt
+        * uintptr_t cr3;                              // CR3 register: the base addr of Page Directroy Table(PDT)
+        * uint32_t flags;                             // Process flag
+        * char name[PROC_NAME_LEN + 1];               // Process name
+        * list_entry_t list_link;                     // Process link list 
+        * list_entry_t hash_link;                     // Process hash list
+        * int exit_code;                              // exit code (be sent to parent proc)
+        * uint32_t wait_state;                        // waiting state
+        * struct proc_struct *cptr, *yptr, *optr;     // relations between processes
+        * struct run_queue *rq;                       // running queue contains Process
+        * list_entry_t run_link;                      // the entry linked in run queue
+        * int time_slice;                             // time slice for occupying the CPU
+        * struct fs_struct *fs_struct;                // the file related info(pwd, files_count, files_array, fs_semaphore) of process
+        */
         proc->state = PROC_UNINIT;
         proc->pid = -1;
         proc->runs = 0;
@@ -112,6 +138,7 @@ alloc_proc(void) {
         proc->rq = NULL;
         list_init(&(proc->run_link));
         proc->time_slice = 0;
+    #endif
     }
     return proc;
    
@@ -425,10 +452,12 @@ do_fork(uint32_t clone_flags, uintptr_t stack, struct trapframe *tf) {
         goto fork_out;
     }
     ret = -E_NO_MEM;
+    #ifdef LAB4_EX2
+    //LAB4:EXERCISE2 YOUR CODE
     /*
      * Some Useful MACROs, Functions and DEFINEs, you can use them in below implementation.
      * MACROs or Functions:
-     *   alloc_proc:   create a proc struct and init fields
+     *   alloc_proc:   create a proc struct and init fields (lab4:exercise1)
      *   setup_kstack: alloc pages with size KSTACKPAGE as process kernel stack
      *   copy_mm:      process "proc" duplicate OR share process "current"'s mm according clone_flags
      *                 if clone_flags & CLONE_VM, then "share" ; else "duplicate"
@@ -476,6 +505,9 @@ do_fork(uint32_t clone_flags, uintptr_t stack, struct trapframe *tf) {
         wakeup_proc(proc);
 
         ret = proc->pid;
+    #endif
+
+
 fork_out:
     return ret;
 
@@ -498,8 +530,8 @@ do_exit(int error_code) {
         panic("idleproc exit.\n");
     }
     if (current == initproc) {
-#ifndef LAB4_EX2
-        kprintf("initproc exit.\nLab3 Check Pass!\n");
+#ifndef LAB8_EX2
+        kprintf("initproc exit.\nLab Finished!\n");
         intr_enable();
         while(1) asm volatile("\tidle 0;\n");
 #else
@@ -517,7 +549,7 @@ do_exit(int error_code) {
         }
         current->mm = NULL;
     }
-    put_fs(current); //in LAB4
+    put_fs(current); //in LAB8
     current->state = PROC_ZOMBIE;
     current->exit_code = error_code;
 
@@ -553,7 +585,7 @@ do_exit(int error_code) {
     panic("do_exit will not return!! %d.\n", current->pid);
 }
 
-//load_icode_read is used by load_icode in LAB4
+//load_icode_read is used by load_icode in LAB8
 
 static int
 load_icode_read(int fd, void *buf, size_t len, off_t offset) {
@@ -573,8 +605,8 @@ load_icode_read(int fd, void *buf, size_t len, off_t offset) {
 // 3. copy TEXT/DATA/BSS parts in binary to memory space of process
 // 4. call mm_map to setup user stack, and put parameters into user stack
 // 5. setup trapframe for user environment
-#ifndef LAB4_EX2
-static int load_icode(unsigned char *binary, size_t size) { // load_icode from binary in kernel file, For LAB4
+#ifndef LAB8_EX2
+static int load_icode(unsigned char *binary, size_t size) { // load_icode from binary in kernel file, For LAB5-LAB7
     if (current->mm != NULL) panic("load_icode: current->mm must be empty.\n");
     int ret = -E_NO_MEM;
     struct mm_struct *mm;
@@ -666,8 +698,8 @@ static int load_icode(unsigned char *binary, size_t size) { // load_icode from b
     lcr3(PADDR(mm->pgdir));
     struct trapframe *tf = current->tf;
     memset(tf, 0, sizeof(struct trapframe));
-    #ifdef LAB3_EX1
-    /* LAB3:EXERCISE1 YOUR CODE
+    #ifdef LAB5_EX1
+    /* LAB5:EXERCISE1 YOUR CODE
      * should set tf_era,tf_regs.reg_r[LOONGARCH_REG_SP],tf->tf_prmd
      * NOTICE: If we set trapframe correctly, then the user level process can return to USER MODE from kernel and enable interrupt. So
      *          tf->tf_prmd should be PLV_USER | CSR_CRMD_IE
@@ -695,9 +727,9 @@ static int load_icode(unsigned char *binary, size_t size) { // load_icode from b
         goto out;
 }
 #else
-static int load_icode(int fd, int argc, char **kargv) { // load_icode from disk fd, For LAB4
-    #ifdef LAB4_EX2
-    /* LAB4:EXERCISE2 YOUR CODE  HINT:how to load the file with handler fd  in to process's memory? how to setup argc/argv?
+static int load_icode(int fd, int argc, char **kargv) { // load_icode from disk fd, For LAB8
+    #ifdef LAB8_EX2
+    /* LAB8:EXERCISE2 YOUR CODE  HINT:how to load the file with handler fd  in to process's memory? how to setup argc/argv?
      * MACROs or Functions:
      *  mm_create        - create a mm
      *  setup_pgdir      - setup pgdir in mm
@@ -717,163 +749,159 @@ static int load_icode(int fd, int argc, char **kargv) { // load_icode from disk 
      *    (3.5) callpgdir_alloc_page to allocate pages for BSS, memset zero in these pages
      * (4) call mm_map to setup user stack, and put parameters into user stack
      * (5) setup current process's mm, cr3, reset pgidr (using lcr3 MARCO)
-     * (6) setup trapframe for user environment (You have done in LAB3)
+     * (6) setup trapframe for user environment (You have done in LAB5)
      * (7) store argc and kargv to a0 and a1 register in trapframe
      * (8) if up steps failed, you should cleanup the env.
      */
+        if (current->mm != NULL) {
+            panic("load_icode: current->mm must be empty.\n");
+        }
 
-	// （1）建立内存管理器
-	if(current->mm != NULL)//检查进程的内存管理器是否清空
-		panic("load_icode: current->mm must be empty.\n");
-	int ret = -E_NO_MEM;
-	struct mm_struct *mm;
-	if((mm = mm_create()) == NULL)//建立内存管理器
-		goto bad_mm;
+        int ret = -E_NO_MEM;
+        struct mm_struct *mm;
+        if ((mm = mm_create()) == NULL) {
+            goto bad_mm;
+        }
+        if (setup_pgdir(mm) != 0) {
+            goto bad_pgdir_cleanup_mm;
+        }
+        struct __elfhdr ___elfhdr__;
+        struct elfhdr32 __elf, *elf = &__elf;
+        if ((ret = load_icode_read(fd, &___elfhdr__, sizeof(struct __elfhdr), 0)) != 0) {
+            goto bad_elf_cleanup_pgdir;
+        }
+        _load_elfhdr((unsigned char*)&___elfhdr__, &__elf);
 
-	// 2）建立页目录
-	if(setup_pgdir(mm) != 0)//设置内存管理器的页目录表
-		goto bad_pgdir_cleanup_mm;
-	
-	// （3）将文件逐段加载到内存中
-	struct __elfhdr ___elfhdr__;
-	struct elfhdr32 __elf, *elf = &__elf;
-	if((ret = load_icode_read(fd, &___elfhdr__, sizeof(struct __elfhdr), 0)) != 0)
-		goto bad_elf_cleanup_pgdir;
-	_load_elfhdr((unsigned char*)&___elfhdr__, &__elf);
-	if(elf->e_magic != ELF_MAGIC)
-	{
-		ret = -E_INVAL_ELF;
-		goto bad_elf_cleanup_pgdir;
-	}
-	struct proghdr _ph, *ph = &_ph;
-	uint32_t vm_flags, phnum;
-	uint32_t perm = 0;
-	struct Page *page;
-	for (phnum = 0; phnum < elf->e_phnum; phnum ++)
-	{
-		off_t phoff = elf->e_phoff + sizeof(struct proghdr) * phnum;
-		if((ret = load_icode_read(fd, ph, sizeof(struct proghdr), phoff)) != 0)
-			goto bad_cleanup_mmap;
-		if(ph->p_type != ELF_PT_LOAD)
-			continue ;
-		if(ph->p_filesz > ph->p_memsz)
-		{
-			ret = -E_INVAL_ELF;
-			goto bad_cleanup_mmap;
-		}
-		vm_flags = 0;
-		perm |= PTE_U;
-		if(ph->p_flags & ELF_PF_X)
-			vm_flags |= VM_EXEC;
-		if(ph->p_flags & ELF_PF_W)
-			vm_flags |= VM_WRITE;
-		if(ph->p_flags & ELF_PF_R)
-			vm_flags |= VM_READ;
-		if(vm_flags & VM_WRITE)
-			perm |= PTE_W;
-		if((ret = mm_map(mm, ph->p_va, ph->p_memsz, vm_flags, NULL)) != 0)
-			goto bad_cleanup_mmap;
-		off_t offset = ph->p_offset;
-		size_t off, size;
-		uintptr_t start = ph->p_va, end, la = ROUNDDOWN_2N(start, PGSHIFT);
-		end = ph->p_va + ph->p_filesz;
-		while (start < end)
-		{
-			if((page = pgdir_alloc_page(mm->pgdir, la, perm)) == NULL)
-			{
-				ret = -E_NO_MEM;
-				goto bad_cleanup_mmap;
-			}
-			off = start - la, size = PGSIZE - off, la += PGSIZE;
-			if(end < la)
-				size -= la - end;
-			if((ret = load_icode_read(fd, page2kva(page) + off, size, offset)) != 0)
-				goto bad_cleanup_mmap;
-			fence_i(page2kva(page)+off, size);
-			start += size, offset += size;
-		}
-		end = ph->p_va + ph->p_memsz;
-		if(start < la)
-		{
-			if(start >= end)
-				continue ;
-			off = start + PGSIZE - la, size = PGSIZE - off;
-			if(end < la)
-				size -= la - end;
-			memset(page2kva(page) + off, 0, size);
-			fence_i(page2kva(page) + off, size);
-			start += size;
-			assert((end < la && start == end) || (end >= la && start == la));
-		}
-		while (start < end) {
-			if((page = pgdir_alloc_page(mm->pgdir, la, perm)) == NULL)
-			{
-				ret = -E_NO_MEM;
-				goto bad_cleanup_mmap;
-			}
-			off = start - la, size = PGSIZE - off, la += PGSIZE;
-			if(end < la)
-				size -= la - end;
-			memset(page2kva(page) + off, 0, size);
-			fence_i(page2kva(page) + off, size);
-			start += size;
-		}
+        if (elf->e_magic != ELF_MAGIC) {
+            ret = -E_INVAL_ELF;
+            goto bad_elf_cleanup_pgdir;
+        }
 
-	}
-	sysfile_close(fd);
+        struct proghdr _ph, *ph = &_ph;
+        uint32_t vm_flags, phnum;
+        uint32_t perm = 0;
+        struct Page *page;
+        for (phnum = 0; phnum < elf->e_phnum; phnum ++) {
+        off_t phoff = elf->e_phoff + sizeof(struct proghdr) * phnum;
+        if ((ret = load_icode_read(fd, ph, sizeof(struct proghdr), phoff)) != 0) {
+            goto bad_cleanup_mmap;
+        }
+        if (ph->p_type != ELF_PT_LOAD) {
+            continue ;
+        }
+        if (ph->p_filesz > ph->p_memsz) {
+            ret = -E_INVAL_ELF;
+            goto bad_cleanup_mmap;
+        }
+        vm_flags = 0;
+        //ptep_set_u_read(&perm);
+        perm |= PTE_U;
+        if (ph->p_flags & ELF_PF_X) vm_flags |= VM_EXEC;
+        if (ph->p_flags & ELF_PF_W) vm_flags |= VM_WRITE;
+        if (ph->p_flags & ELF_PF_R) vm_flags |= VM_READ;
+        if (vm_flags & VM_WRITE) perm |= PTE_W; 
 
-	// (4)建立相应的虚拟内存映射表
-	vm_flags = VM_READ | VM_WRITE | VM_STACK;//设置用户栈的权限,将用户栈所在的虚拟内存区域设置为合法
-	if((ret = mm_map(mm, USTACKTOP - USTACKSIZE, USTACKSIZE, vm_flags, NULL)) != 0)
-		goto bad_cleanup_mmap;
+        if ((ret = mm_map(mm, ph->p_va, ph->p_memsz, vm_flags, NULL)) != 0) {
+            goto bad_cleanup_mmap;
+        }
 
-	// (5)建立并初始化用户堆栈
-	mm_count_inc(mm);//切换到用户进程空间
-	current->mm = mm;
-	current->cr3 = PADDR(mm->pgdir);
-	lcr3(PADDR(mm->pgdir));
+        off_t offset = ph->p_offset;
+        size_t off, size;
+        uintptr_t start = ph->p_va, end, la = ROUNDDOWN_2N(start, PGSHIFT);
 
+        end = ph->p_va + ph->p_filesz;
+        while (start < end) {
+            if ((page = pgdir_alloc_page(mm->pgdir, la, perm)) == NULL) {
+            ret = -E_NO_MEM;
+            goto bad_cleanup_mmap;
+            }
+            off = start - la, size = PGSIZE - off, la += PGSIZE;
+            if (end < la) {
+            size -= la - end;
+            }
+            if ((ret = load_icode_read(fd, page2kva(page) + off, size, offset)) != 0) {
+                goto bad_cleanup_mmap;
+            }
+            fence_i(page2kva(page)+off, size);
+            start += size, offset += size;
+        }
 
-	// (6)处理用户栈中传入的参数
-	uintptr_t stacktop = USTACKTOP - argc * PGSIZE;
-	char **uargv = (char **)(stacktop - argc * sizeof(char *));
-	for (int i = 0; i < argc; i ++)
-		uargv[i] = strcpy((char *)(stacktop + i * PGSIZE), kargv[i]);
+        end = ph->p_va + ph->p_memsz;
 
-	// (7) 设置用户进程的中断帧
-	struct trapframe *tf = current->tf;
-	memset(tf, 0, sizeof(struct trapframe));
-	tf->tf_era = elf->e_entry;
-	tf->tf_regs.reg_r[LOONGARCH_REG_SP] = USTACKTOP;
-	uint32_t status = 0;
-	status |= PLV_USER;
-	status |= CSR_CRMD_IE;
-	tf->tf_prmd = status;
-	tf->tf_regs.reg_r[LOONGARCH_REG_A0] = argc;
-	tf->tf_regs.reg_r[LOONGARCH_REG_A1] = (uint32_t)uargv;
+        if (start < la) {
+            if (start >= end) {
+            continue ;
+            }
+            off = start + PGSIZE - la, size = PGSIZE - off;
+            if (end < la) {
+            size -= la - end;
+            }
+            memset(page2kva(page) + off, 0, size);
+            fence_i(page2kva(page) + off, size);
+            start += size;
+            assert((end < la && start == end) || (end >= la && start == la));
+        }
 
+        while (start < end) {
+            if ((page = pgdir_alloc_page(mm->pgdir, la, perm)) == NULL) {
+            ret = -E_NO_MEM;
+            goto bad_cleanup_mmap;
+            }
+            off = start - la, size = PGSIZE - off, la += PGSIZE;
+            if (end < la) {
+            size -= la - end;
+            }
+            memset(page2kva(page) + off, 0, size);
+            fence_i(page2kva(page) + off, size);
+            start += size;
+        }
+    }
+    sysfile_close(fd);
+    vm_flags = VM_READ | VM_WRITE | VM_STACK;
+    if ((ret = mm_map(mm, USTACKTOP - USTACKSIZE, USTACKSIZE, vm_flags, NULL)) != 0) {
+    goto bad_cleanup_mmap;
+    }
 
-	// (8)错误处理
-	ret = 0;//函数正常退出
-	out:
-		return ret;
-	bad_cleanup_mmap:
-		panic("bad_cleanup_mmap");
-		exit_mmap(mm);
-	bad_elf_cleanup_pgdir:
-		panic("bad_elf_cleanup_pgdir");
-		put_pgdir(mm);
-	bad_pgdir_cleanup_mm:
-		panic("bad_pgdir_cleanup_mm");
-		mm_destroy(mm);
-	bad_mm:
-		panic("bad_mm");
-		goto out;
-
+    mm_count_inc(mm);
+    current->mm = mm;
+    current->cr3 = PADDR(mm->pgdir);
+    lcr3(PADDR(mm->pgdir));
+    uintptr_t stacktop = USTACKTOP - argc * PGSIZE;
+    char **uargv = (char **)(stacktop - argc * sizeof(char *));
+    int i;
+    for (i = 0; i < argc; i ++) {
+        uargv[i] = strcpy((char *)(stacktop + i * PGSIZE), kargv[i]);
+    }
+    struct trapframe *tf = current->tf;
+    memset(tf, 0, sizeof(struct trapframe));
+    tf->tf_era = elf->e_entry;
+    tf->tf_regs.reg_r[LOONGARCH_REG_SP] = USTACKTOP;
+    uint32_t status = 0;
+    status |= PLV_USER; // set plv=3(User Mode)
+    status |= CSR_CRMD_IE;
+    tf->tf_prmd = status;
+    tf->tf_regs.reg_r[LOONGARCH_REG_A0] = argc;
+    tf->tf_regs.reg_r[LOONGARCH_REG_A1] = (uint32_t)uargv;
+    ret = 0;
+    out:
+        return ret;
+    bad_cleanup_mmap:
+        panic("bad_cleanup_mmap");
+        exit_mmap(mm);
+    bad_elf_cleanup_pgdir:
+        panic("bad_elf_cleanup_pgdir");
+        put_pgdir(mm);
+    bad_pgdir_cleanup_mm:
+        panic("bad_pgdir_cleanup_mm");
+        mm_destroy(mm);
+    bad_mm:
+        panic("bad_mm");
+        goto out;
     #endif
 }
 #endif
 
+// this function isn't very correct in LAB8
 static void
 put_kargv(int argc, char **kargv) {
     while (argc > 0) {
@@ -909,7 +937,7 @@ failed_cleanup:
 
 // do_execve - call exit_mmap(mm)&pug_pgdir(mm) to reclaim memory space of current process
 //           - call load_icode to setup new memory space accroding binary prog.
-#ifndef LAB4_EX2
+#ifndef LAB8_EX2
 int
 do_execve(const char *name, size_t len, unsigned char *binary, size_t size) {
     struct mm_struct *mm = current->mm;
@@ -1097,7 +1125,7 @@ do_kill(int pid) {
 }
 
 // kernel_execve - do SYS_exec syscall to exec a user program called by user_main kernel_thread
-#ifndef LAB4_EX2
+#ifndef LAB8_EX2
 static int kernel_execve(const char *name, unsigned char *binary, size_t size) {
     int ret, len = strlen(name);
     asm volatile(
@@ -1140,7 +1168,7 @@ static int kernel_execve(const char *name, const char **argv) {
 #endif
 
 
-#ifndef LAB4_EX2
+#ifndef LAB8_EX2
     #define __KERNEL_EXECVE(name, binary, size) ({                          \
                 kprintf("kernel_execve: pid = %d, name = \"%s\".\n",        \
                         current->pid, name);                                \
@@ -1182,7 +1210,7 @@ static int kernel_execve(const char *name, const char **argv) {
 // user_main - kernel thread used to exec a user program
 static int
 user_main(void *arg) {
-#ifdef LAB4_EX2
+#ifdef LAB8_EX2
     KERNEL_EXECVE(sh);
 #else
     KERNEL_EXECVE(exit);
@@ -1193,9 +1221,9 @@ user_main(void *arg) {
 // init_main - the second kernel thread used to create user_main kernel threads
 static int
 init_main(void *arg) {
-#ifdef LAB3_EX1
+#ifdef LAB5_EX1
 	int ret;
-#ifdef LAB4_EX2
+#ifdef LAB8_EX2
     if ((ret = vfs_set_bootfs("disk0:")) != 0) {
         panic("set boot fs failed: %e.\n", ret);
     }
@@ -1215,7 +1243,7 @@ init_main(void *arg) {
     while (do_wait(0, NULL) == 0) {
         schedule();
     }
-#ifdef LAB4_EX2
+#ifdef LAB8_EX2
     fs_cleanup();
 #endif
     kprintf("all user-mode processes have quit.\n");
