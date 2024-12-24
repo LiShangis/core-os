@@ -234,16 +234,32 @@ get_pte(pde_t *pgdir, uintptr_t la, bool create) {
      *   PTE_W           0x002                   // page table/directory entry flags bit : Writeable
      *   PTE_U           0x004                   // page table/directory entry flags bit : User can access
      */
-    pde_t *pdep = NULL;   // (1) find page directory entry
-    if (0) {              // (2) check if entry is not present
-                          // (3) check if creating is needed, then alloc page for page table
-                          // CAUTION: this page is used for page table, not for common data page
-                          // (4) set page reference
-        uintptr_t pa = 0; // (5) get linear address of page
-                          // (6) clear page content using memset
-                          // (7) set page directory entry's permission
-    }
-    return NULL;          // (8) return page table entry
+	pde_t *pdep = NULL; // 寻找一级页表中的索引，入口
+	pdep = pgdir + PDX(la); // PDX(la)  前10位(PDE)
+	// 检查页表项是否存在
+	if (((*pdep) & PTE_P) == 0)
+	{
+		// 不需要分配或者分配的页为NULL
+		if (!create)
+			return NULL;
+		// 设置引用次数一次
+		struct Page *new_pte = alloc_page();
+		if (!new_pte)
+			return NULL;
+		page_ref_inc(new_pte);
+		// 得到物理地址
+		uintptr_t pa = (uintptr_t)page2kva(new_pte);
+		// 清理虚拟地址
+		memset((void *)pa, 0, PGSIZE);
+		kprintf("@@@ %x\n", pa);
+		//  set page directory entry's permission
+		*pdep = PADDR(pa);
+		(*pdep) |= (PTE_U | PTE_P | PTE_W);
+	}
+	// 将物理地址再转化为内核虚拟地址,就能得到二级页表的起始地址,然后加上PTE对应的偏移量,得到最终的二级页表虚地址
+	pte_t *ret = (pte_t *)KADDR((uintptr_t)((pte_t *)(PDE_ADDR(*pdep)) + PTX(la)));
+	kprintf("@@GET_PTE %x %x %x\n", *pdep, ret, *ret);
+	return ret; // return page table entry
 #endif
 }
 
