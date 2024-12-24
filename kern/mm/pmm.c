@@ -650,6 +650,8 @@ copy_range(pde_t *to, pde_t *from, uintptr_t start, uintptr_t end, bool share) {
 			 */
 
 
+			memcpy(page2kva(npage), page2kva(page), PGSIZE);  //将父进程的物理页的内容复制到子进程中去
+			page_insert(to, npage, start,perm);  //建立子进程的物理页与虚拟页的映射关系
 #endif
 			assert(ret == 0);
 		}
