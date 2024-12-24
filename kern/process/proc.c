@@ -17,12 +17,6 @@
 #include <sysfile.h>
 #include <loongarch_trapframe.h>
 #include <loongarch.h>
-#define MIN3(a, b, c) ({ \
-    typeof(a) _a = (a); \
-    typeof(b) _b = (b); \
-    typeof(c) _c = (c); \
-    (_a < _b) ? (_a < _c ? _a : _c) : (_b < _c ? _b : _c); \
-})
 
 /* ------------- process/thread mechanism design&implementation -------------
 (an simplified Linux process/thread mechanism )
@@ -72,7 +66,7 @@ SYS_getpid      : get the process's pid
 
 // the process set's list
 list_entry_t proc_list;
-char* buffer = NULL;
+
 #define HASH_SHIFT          10
 #define HASH_LIST_SIZE      (1 << HASH_SHIFT)
 #define pid_hashfn(x)       (hash32(x, HASH_SHIFT))
@@ -86,9 +80,6 @@ struct proc_struct *idleproc = NULL;
 struct proc_struct *initproc = NULL;
 // current proc
 struct proc_struct *current = NULL;
-
-struct proc_strct *sonproc=NULL;
-
 
 static int nr_process = 0;
 
@@ -428,7 +419,6 @@ put_fs(struct proc_struct *proc) {
 //    7. set the 
 int
 do_fork(uint32_t clone_flags, uintptr_t stack, struct trapframe *tf) {
-    
     int ret = -E_NO_FREE_PROC;
     struct proc_struct *proc;
     if (nr_process >= MAX_PROCESS) {
@@ -731,150 +721,6 @@ static int load_icode(int fd, int argc, char **kargv) { // load_icode from disk 
      * (7) store argc and kargv to a0 and a1 register in trapframe
      * (8) if up steps failed, you should cleanup the env.
      */
-        if (current->mm != NULL) {
-            panic("load_icode: current->mm must be empty.\n");
-        }
-
-        int ret = -E_NO_MEM;
-        struct mm_struct *mm;
-        if ((mm = mm_create()) == NULL) {
-            goto bad_mm;
-        }
-        if (setup_pgdir(mm) != 0) {
-            goto bad_pgdir_cleanup_mm;
-        }
-        struct __elfhdr ___elfhdr__;
-        struct elfhdr32 __elf, *elf = &__elf;
-        if ((ret = load_icode_read(fd, &___elfhdr__, sizeof(struct __elfhdr), 0)) != 0) {
-            goto bad_elf_cleanup_pgdir;
-        }
-        _load_elfhdr((unsigned char*)&___elfhdr__, &__elf);
-
-        if (elf->e_magic != ELF_MAGIC) {
-            ret = -E_INVAL_ELF;
-            goto bad_elf_cleanup_pgdir;
-        }
-
-        struct proghdr _ph, *ph = &_ph;
-        uint32_t vm_flags, phnum;
-        uint32_t perm = 0;
-        struct Page *page;
-        for (phnum = 0; phnum < elf->e_phnum; phnum ++) {
-        off_t phoff = elf->e_phoff + sizeof(struct proghdr) * phnum;
-        if ((ret = load_icode_read(fd, ph, sizeof(struct proghdr), phoff)) != 0) {
-            goto bad_cleanup_mmap;
-        }
-        if (ph->p_type != ELF_PT_LOAD) {
-            continue ;
-        }
-        if (ph->p_filesz > ph->p_memsz) {
-            ret = -E_INVAL_ELF;
-            goto bad_cleanup_mmap;
-        }
-        vm_flags = 0;
-        //ptep_set_u_read(&perm);
-        perm |= PTE_U;
-        if (ph->p_flags & ELF_PF_X) vm_flags |= VM_EXEC;
-        if (ph->p_flags & ELF_PF_W) vm_flags |= VM_WRITE;
-        if (ph->p_flags & ELF_PF_R) vm_flags |= VM_READ;
-        if (vm_flags & VM_WRITE) perm |= PTE_W; 
-
-        if ((ret = mm_map(mm, ph->p_va, ph->p_memsz, vm_flags, NULL)) != 0) {
-            goto bad_cleanup_mmap;
-        }
-
-        off_t offset = ph->p_offset;
-        size_t off, size;
-        uintptr_t start = ph->p_va, end, la = ROUNDDOWN_2N(start, PGSHIFT);
-
-        end = ph->p_va + ph->p_filesz;
-        while (start < end) {
-            if ((page = pgdir_alloc_page(mm->pgdir, la, perm)) == NULL) {
-            ret = -E_NO_MEM;
-            goto bad_cleanup_mmap;
-            }
-            off = start - la, size = PGSIZE - off, la += PGSIZE;
-            if (end < la) {
-            size -= la - end;
-            }
-            if ((ret = load_icode_read(fd, page2kva(page) + off, size, offset)) != 0) {
-                goto bad_cleanup_mmap;
-            }
-            fence_i(page2kva(page)+off, size);
-            start += size, offset += size;
-        }
-
-        end = ph->p_va + ph->p_memsz;
-
-        if (start < la) {
-            if (start >= end) {
-            continue ;
-            }
-            off = start + PGSIZE - la, size = PGSIZE - off;
-            if (end < la) {
-            size -= la - end;
-            }
-            memset(page2kva(page) + off, 0, size);
-            fence_i(page2kva(page) + off, size);
-            start += size;
-            assert((end < la && start == end) || (end >= la && start == la));
-        }
-
-        while (start < end) {
-            if ((page = pgdir_alloc_page(mm->pgdir, la, perm)) == NULL) {
-            ret = -E_NO_MEM;
-            goto bad_cleanup_mmap;
-            }
-            off = start - la, size = PGSIZE - off, la += PGSIZE;
-            if (end < la) {
-            size -= la - end;
-            }
-            memset(page2kva(page) + off, 0, size);
-            fence_i(page2kva(page) + off, size);
-            start += size;
-        }
-    }
-    sysfile_close(fd);
-    vm_flags = VM_READ | VM_WRITE | VM_STACK;
-    if ((ret = mm_map(mm, USTACKTOP - USTACKSIZE, USTACKSIZE, vm_flags, NULL)) != 0) {
-    goto bad_cleanup_mmap;
-    }
-
-    mm_count_inc(mm);
-    current->mm = mm;
-    current->cr3 = PADDR(mm->pgdir);
-    lcr3(PADDR(mm->pgdir));
-    uintptr_t stacktop = USTACKTOP - argc * PGSIZE;
-    char **uargv = (char **)(stacktop - argc * sizeof(char *));
-    int i;
-    for (i = 0; i < argc; i ++) {
-        uargv[i] = strcpy((char *)(stacktop + i * PGSIZE), kargv[i]);
-    }
-    struct trapframe *tf = current->tf;
-    memset(tf, 0, sizeof(struct trapframe));
-    tf->tf_era = elf->e_entry;
-    tf->tf_regs.reg_r[LOONGARCH_REG_SP] = USTACKTOP;
-    uint32_t status = 0;
-    status |= PLV_USER; // set plv=3(User Mode)
-    status |= CSR_CRMD_IE;
-    tf->tf_prmd = status;
-    tf->tf_regs.reg_r[LOONGARCH_REG_A0] = argc;
-    tf->tf_regs.reg_r[LOONGARCH_REG_A1] = (uint32_t)uargv;
-    ret = 0;
-    out:
-        return ret;
-    bad_cleanup_mmap:
-        panic("bad_cleanup_mmap");
-        exit_mmap(mm);
-    bad_elf_cleanup_pgdir:
-        panic("bad_elf_cleanup_pgdir");
-        put_pgdir(mm);
-    bad_pgdir_cleanup_mm:
-        panic("bad_pgdir_cleanup_mm");
-        mm_destroy(mm);
-    bad_mm:
-        panic("bad_mm");
-        goto out;
     #endif
 }
 #endif
@@ -1245,155 +1091,9 @@ init_main(void *arg) {
     return 0;
 #endif
 }
-#define PIPESIZE 128
-struct pipe {
-    char* addr;
-    int pipe_size;
-    int nread;     // number of bytes read
-    int nwrite;    // number of bytes written
-    int readopen;   // read fd is still open
-    int writeopen;  // write fd is still open
-};
-struct pipe_port{
-    bool port_type;
-    struct pipe *pipe;
-    bool readable;
-    bool writable;
-
-};
-struct pipe *pipe_enty=NULL;
-struct pipe_port *ppt0=NULL;
-struct pipe_port *ppt1=NULL;
-
-
-
-int pipealloc(struct pipe_port *p0, struct pipe_port *p1)
-{
-    pipe_enty = (struct pipe*)kmalloc(sizeof(struct pipe));
-    // LAB5 YOUR CODE EX1 -----------------
-    // use kmalloc to alloc space for pipe_port
-    ppt0 = (struct pipe_port*)kmalloc(sizeof(struct pipe_port));
-    ppt1 = (struct pipe_port*)kmalloc(sizeof(struct pipe_port));
-
-    // LAB5 YOUR CODE EX1 -----------------
-    // 这里没有用预分配，由于 pipe 比较大，直接拿一个页过来，也不算太浪费
-    pipe_enty->addr= kmalloc(128);
-
-    // 一开始pipe可读可写，但是已读和已写内容为0
-    pipe_enty->readopen = 1;
-    pipe_enty->writeopen = 1;
-    pipe_enty->nwrite = 0;
-    pipe_enty->nread = 0;
-
-    ppt0->readable = 1;
-    ppt0->writable = 0;
-    ppt0->pipe=pipe_enty;
-
-    ppt1->readable = 0;
-    ppt1->writable = 1;
-    ppt1->pipe=pipe_enty;
-
-    return 0;
-}
-// LAB5 CODES for communication
-
-int pipewrite(struct pipe *pi, char* msg, int len)
-{
-    // w 记录已经写的字节数
-    int w = 0;
-    while(w < len){
-        // 若不可读，写也没有意义
-        if(pi->readopen == 0){
-            return -1;
-        }
-
-        if(pi->nwrite == pi->nread + PIPESIZE){
-            // pipe write 端已满，阻塞
-            do_yield();
-        } else {
-            // 一次读的 size 为 min(用户buffer剩余，pipe 剩余写容量，pipe 剩余线性容量)
-            int size = MIN3(
-                len - w,
-                pi->nread + PIPESIZE - pi->nwrite,
-                PIPESIZE - (pi->nwrite % PIPESIZE)
-            );
-            kprintf("size %d\n",size);
-            //LAB5 YOUR CODE EX2 -----------------
-
-	    // 将msg中的数据写入pipe的addr中
-	    for (int x = 0; x < size; x++) {
-		    // 计算写入管道的地址
-		    unsigned char *addr_to_write = pi->addr + (pi->nwrite % PIPESIZE);
-		    // 写入数据
-		    *addr_to_write = *(msg + w + x);
-		    // 更新已写入字节的位置
-		    pi->nwrite++;
-	    }
-	    // 更新已写入字节数w
-	    w += size;
-            //LAB5 YOUR CODE EX2 -----------------
-        }
-    }
-    return w;
-}
-
-int piperead(struct pipe *pi, int n)
-{
-    // r 记录已经写的字节数
-    int r = 0;
-
-    // 若 pipe 可读内容为空，阻塞或者报错
-    while(pi->nread == pi->nwrite) {
-        if(pi->writeopen)
-            do_yield();
-        else
-            return -1;
-    }
-
-    uint64_t size = MIN3(
-    n - r,
-    pi->nwrite - pi->nread,
-    PIPESIZE - (pi->nread % PIPESIZE)
-    );
-    while(r < n && size!=0){
-        kprintf("size %d\n",size);
-
-        // pipe 可读内容为空，返回
-        if(pi->nread == pi->nwrite)
-            break;
-        // 一次写的 size 为：min(用户buffer剩余，可读内容，pipe剩余线性容量)
-
-        // 使用 copyout 写用户内存
-        int x=0;
-        for (;x<size;x+=1){
-                kprintf("%c",*(pi->addr+r+x));
-            }
-        pi->nread += size;
-        r += size;
-    }
-    return r;
-}
-
-static int
-lab5_proc0(void *arg) {
-    struct trapframe *tf =current->tf;
-    uintptr_t stack = tf->tf_regs.reg_r[LOONGARCH_REG_SP];
-    int cur_pid=current->pid;
-
-    pipewrite(pipe_enty,"abcde",4);
-    return 0;
-}
-static int
-lab5_proc1(void *arg) {
-    struct trapframe *tf = current->tf;
-    uintptr_t stack = tf->tf_regs.reg_r[LOONGARCH_REG_SP];
-    int cur_pid=current->pid;
-
-    piperead(pipe_enty,4);
-    return 0;
-}
 
 // proc_init - set up the first kernel thread idleproc "idle" by itself and 
+//           - create the second kernel thread init_main
 void
 proc_init(void) {
     int i;
@@ -1424,20 +1124,11 @@ proc_init(void) {
     current = idleproc;
 
     int pid = kernel_thread(init_main, NULL, 0);
-    pipealloc(ppt0,ppt1);
-    // buffer=kmalloc(128);
-    int pid0= kernel_thread(lab5_proc0,NULL,0);
-    int pid1= kernel_thread(lab5_proc1,NULL,0);
     if (pid <= 0) {
         panic("create init_main failed.\n");
     }
-    if (pid1 <= 0) {
-        panic("create lab5 failed.\n");
-    }
 
-    // panic(pid2);
     initproc = find_proc(pid);
-    
     set_proc_name(initproc, "init");
 
     assert(idleproc != NULL && idleproc->pid == 0);

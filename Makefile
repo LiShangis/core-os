@@ -159,7 +159,7 @@ clean:
 	-rm -rf $(OBJDIR)
 
 qemu: $(OBJDIR)/ucore-kernel-$(USER_OBJ_MODE)
-	$(V)$(QEMU) $(QEMUOPTS) -kernel $(OBJDIR)/ucore-kernel-$(USER_OBJ_MODE)
+	$(V)$(QEMU) $(QEMUOPTS) -kernel $(OBJDIR)/ucore-kernel-$(USER_OBJ_MODE) &
 
 debug: $(OBJDIR)/ucore-kernel-$(USER_OBJ_MODE)
 	$(V)$(QEMU) $(QEMUOPTS) -kernel $(OBJDIR)/ucore-kernel-$(USER_OBJ_MODE) -S -s
