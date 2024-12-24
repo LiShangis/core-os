@@ -1,6 +1,0 @@
-qemu-system-loongarch32 -M ls3a5k32 -m 32M -kernel start.elf -nographic &
-loongson32_init: num_nodes 1
-loongson32_init: node 0 mem 0x2000000
-
-Here is my first bare-metal machine program on LoongArch32!
-
