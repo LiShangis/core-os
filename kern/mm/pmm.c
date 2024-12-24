@@ -298,13 +298,23 @@ page_remove_pte(pde_t *pgdir, uintptr_t la, pte_t *ptep) {
      * DEFINEs:
      *   PTE_P           0x001                   // page table/directory entry flags bit : Present
      */
-    if (0) {                      //(1) check if this page table entry is present
-        struct Page *page = NULL; //(2) find corresponding page to pte
-                                  //(3) decrease page reference
-                                  //(4) and free this page when page reference reachs 0
-                                  //(5) clear second page table entry
-                                  //(6) flush tlb
-    }
+	// 检查ptep是否存在
+	if (ptep && (*ptep & PTE_P))
+	{
+		// 找到二级页表entry对应的页面
+		struct Page *page = pte2page(*ptep);
+		// page 引用减一
+		page_ref_dec(page);
+		// 如果page引用数为0,则清除页面
+		if (page_ref(page) == 0)
+		{
+			free_page(page);
+		}
+		// 将二级页表entry清零
+		*ptep = 0;
+	}
+	// 清洗快表
+	tlb_invalidate_all();
 #endif
 }
 
